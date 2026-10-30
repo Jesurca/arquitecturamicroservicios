@@ -1,0 +1,23 @@
+{
+  "name": "plataforma-academica-microservicios",
+  "version": "1.0.0",
+  "description": "Taller de microservicios: Plataforma de Gestión Académica Universitaria",
+  "private": true,
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node --no-warnings scripts/dev.js",
+    "smoke": "node scripts/smoke.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.4",
+    "express": "^4.22.3",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

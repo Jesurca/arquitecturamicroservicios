@@ -1,0 +1,70 @@
+# Plataforma Académica - 7 microservicios + API Gateway + RabbitMQ
+# Uso: docker compose up --build   →   http://localhost:8080
+x-service: &svc
+  build: { context: . }
+  restart: unless-stopped
+  environment: &env
+    RABBIT_URL: amqp://guest:guest@rabbitmq:5672
+    JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto-en-produccion}
+  depends_on:
+    rabbitmq: { condition: service_healthy }
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports: ["5672:5672", "15672:15672"]   # 15672 = consola web (guest / guest)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  auth-service:
+    <<: *svc
+    build: { context: ., args: { SERVICE: services/auth/index.js } }
+    volumes: ["auth-data:/data"]   # base de datos propia (Database per Service)
+
+  student-service:
+    <<: *svc
+    build: { context: ., args: { SERVICE: services/student/index.js } }
+    volumes: ["student-data:/data"]   # base de datos propia (Database per Service)
+
+  teacher-service:
+    <<: *svc
+    build: { context: ., args: { SERVICE: services/teacher/index.js } }
+    volumes: ["teacher-data:/data"]   # base de datos propia (Database per Service)
+
+  course-service:
+    <<: *svc
+    build: { context: ., args: { SERVICE: services/course/index.js } }
+    volumes: ["course-data:/data"]   # base de datos propia (Database per Service)
+
+  enrollment-service:
+    <<: *svc
+    build: { context: ., args: { SERVICE: services/enrollment/index.js } }
+    volumes: ["enrollment-data:/data"]   # base de datos propia (Database per Service)
+
+  payment-service:
+    <<: *svc
+    build: { context: ., args: { SERVICE: services/payment/index.js } }
+    volumes: ["payment-data:/data"]   # base de datos propia (Database per Service)
+
+  notification-service:
+    <<: *svc
+    build: { context: ., args: { SERVICE: services/notification/index.js } }
+    volumes: ["notification-data:/data"]   # base de datos propia (Database per Service)
+
+  api-gateway:
+    <<: *svc
+    build: { context: ., args: { SERVICE: gateway/index.js } }
+    ports: ["8080:8080"]
+    depends_on: [auth-service, student-service, teacher-service, course-service, enrollment-service, payment-service, notification-service]
+
+volumes:
+  auth-data:
+  student-data:
+  teacher-data:
+  course-data:
+  enrollment-data:
+  payment-data:
+  notification-data:
