@@ -8,7 +8,12 @@
   },
   "scripts": {
     "start": "node --no-warnings scripts/dev.js",
-    "smoke": "node scripts/smoke.js"
+    "smoke": "node scripts/smoke.js",
+    "chaos": "node scripts/chaos.js",
+    "chaos:kill": "node scripts/chaos.js --mode kill",
+    "chaos:random": "node scripts/chaos.js --random 5",
+    "docker:up": "docker compose up -d --build --wait",
+    "docker:down": "docker compose down"
   },
   "dependencies": {
     "amqplib": "^0.10.4",

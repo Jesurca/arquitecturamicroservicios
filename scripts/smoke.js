@@ -1,4 +1,4 @@
-n// Prueba de humo end-to-end contra el gateway (http://localhost:8080). Uso: npm run smoke
+// Prueba de humo end-to-end contra el gateway (http://localhost:8080). Uso: npm run smoke
 const BASE = process.env.BASE || 'http://localhost:8080/api';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0;

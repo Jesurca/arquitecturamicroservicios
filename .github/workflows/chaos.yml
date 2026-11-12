@@ -1,0 +1,43 @@
+# Automatización: en cada push / PR (o a mano desde la pestaña Actions) levanta la arquitectura completa,
+# corre la prueba de humo y luego el test del mono a cada contenedor. El reporte queda como artefacto descargable.
+name: Test del mono
+
+on:
+  push: { branches: [main] }
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Modos de falla (kill,stop,pause,network)"
+        default: "kill,stop,pause,network"
+
+jobs:
+  chaos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+
+      - name: Levantar contenedores
+        run: docker compose up -d --build --wait --wait-timeout 240
+
+      - name: Prueba de humo (bases de datos vacías)
+        run: node scripts/smoke.js
+
+      - name: Test del mono
+        run: node scripts/chaos.js --mode "${{ github.event.inputs.mode || 'kill,stop,pause,network' }}"
+
+      - name: Logs de los contenedores (si algo falló)
+        if: failure()
+        run: docker compose logs --no-color --tail 200
+
+      - name: Publicar reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: reporte-test-del-mono, path: reports/ }
+
+      - name: Apagar
+        if: always()
+        run: docker compose down -v

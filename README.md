@@ -4,7 +4,7 @@ Taller de arquitectura de microservicios (Proyecto 1). 7 microservicios + API Ga
 
 ## Opción A: Docker (recomendada)
 ```bash
-docker compose up --build
+docker compose up -d --build --wait
 ```
 Abre **http://localhost:8080**. Consola de RabbitMQ: http://localhost:15672 (guest / guest).
 Para detener: `Ctrl+C` y `docker compose down` (añade `-v` para borrar las bases de datos).
@@ -16,6 +16,38 @@ npm install
 npm start          # lanza los 8 procesos; abre http://localhost:8080
 npm run smoke      # (en otra terminal) prueba end-to-end: 33 verificaciones
 ```
+
+## Arquitectura de contenedores (`docs/Taller arquitectura.png`)
+9 contenedores (`pa-*`) repartidos en las zonas del diagrama:
+
+| Red (driver bridge) | Zona del diagrama | Contenedores |
+|---|---|---|
+| `pa-edge-net` | Cliente → Proxy | api-gateway (puerto 8080), rabbitmq (solo consola 15672) |
+| `pa-saga-net` (internal) | Aggregator y Saga Pattern | enrollment, student, course, teacher, rabbitmq, api-gateway |
+| `pa-domain-net` (internal) | Dominio y Mensajería Branch Pattern | auth, payment, notification, rabbitmq, api-gateway |
+
+Las dos zonas no pueden llamarse por HTTP entre sí: solo se comunican por eventos a través de RabbitMQ o pasando por el gateway. Las redes `internal` no tienen salida a internet.
+
+Los 6 bloques de cada contenedor del diagrama:
+| Bloque | Implementación en `docker-compose.yml` |
+|---|---|
+| **NET** | redes de la zona + alias DNS (`course-service`, …) |
+| **ISO** | usuario `node` (no root), FS de solo lectura, `cap_drop: ALL`, `no-new-privileges`, límites de 256 MB RAM, 0.5 CPU y 100 PIDs |
+| **Config** | `env_file`: `config/common.env` + `config/<servicio>.env` |
+| **Bridge** | redes `driver: bridge` con subred propia (172.30.x.0/24) |
+| **Data** | volumen con nombre por servicio (`auth-db`, `course-db`, …) montado en `/data` |
+| **Disk** | `/tmp` en tmpfs de 16 MB + logs rotados (3 × 10 MB) |
+
+## Test del mono (Chaos Monkey)
+Con los contenedores arriba (`docker compose up -d --build --wait`):
+```bash
+npm run chaos            # los 9 contenedores × 4 fallas (kill, stop, pause, network)
+npm run chaos:kill       # solo crash + autocuración, a cada contenedor
+npm run chaos:random     # 5 ataques al azar
+node scripts/chaos.js --target course-service --mode pause --hold 15
+node scripts/chaos.js --help
+```
+Cada ronda verifica el **estado estable**, el **radio de impacto** (solo cae el servicio atacado y responde 503 rápido), la **recuperación** (MTTR) y la **integridad** (APIs, saga completa por eventos y datos persistidos). Deja un reporte en `reports/chaos-<fecha>.md` y `.json`, y devuelve código de salida 1 si alguna ronda falla. En GitHub corre solo con `.github/workflows/chaos.yml`.
 
 ## Cuentas de demostración
 | Rol | Correo | Contraseña |
